@@ -1,0 +1,23 @@
+# UE5 Generated
+Binaries/
+Intermediate/
+DerivedDataCache/
+Saved/
+Build/
+
+# IDE
+.vs/
+.idea/
+*.sln
+*.sln.docstates
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Agent
+.claude/
+
+# Package
+Package/
+Plugins/Scheduler/Config/FilterPlugin.ini
