@@ -15,12 +15,28 @@ void UUmbilicalCableComponent::SetTargetPoint(USceneComponent* StartPoint, UScen
 	EndComponent = EndPoint;
 }
 
-void UUmbilicalCableComponent::UpdateCable()
+bool UUmbilicalCableComponent::UpdateCable()
 {
+	if (!IsValid(StartComponent) || !IsValid(EndComponent))
+	{
+		return false;
+	}
+
+	// 预检：端点间距超过 CableLength 时 SlackLength 归零，线缆绷直拉紧
+	const float RawSlack = CableLength - FVector::Dist(
+		StartComponent->GetComponentLocation(), EndComponent->GetComponentLocation());
+	if (RawSlack < 0.f)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("[UmbilicalCable] 线缆长度不足！CableLength=%.1f，端点间距=%.1f，缺少=%.1f——将以直线拉直"),
+			CableLength, CableLength + RawSlack, -RawSlack);
+	}
+
 	GenerateCenterline();
 	if (bIsDrawCenterLine)
 		DebugDrawCenterline();
 	GenerateCable();
+	return true;
 }
 
 void UUmbilicalCableComponent::SetPointCount(int32 NewPointCount)
@@ -241,9 +257,12 @@ void UUmbilicalCableComponent::BuildCableVertices()
 	const float InvRadialSegments = 1.0f / static_cast<float>(RadialSegments);
 	const float InvPointNumMinus1 = 1.0f / static_cast<float>(PointNum - 1);
 
+	// SagPoints 为世界空间坐标，ProceduralMesh 需要组件本地空间——逆变换一次即可
+	const FTransform InvTransform = GetComponentTransform().Inverse();
+
 	for (int32 i = 0; i < PointNum; ++i)
 	{
-		const FVector Center = SagPoints[i];
+		const FVector Center = InvTransform.TransformPosition(SagPoints[i]);
 		// 切线已在 GenerateCenterline 中归一化，无需重复 GetSafeNormal
 		const FVector Forward = Tangents[i];
 		// 防止Forward接近Z轴时叉乘退化

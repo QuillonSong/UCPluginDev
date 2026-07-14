@@ -55,7 +55,7 @@ public:
 	void SetTargetPoint(USceneComponent* StartPoint, USceneComponent* EndPoint);
 	//更新线缆
 	UFUNCTION(BlueprintCallable, Category = UmbilicalCable)
-	void UpdateCable();
+	bool UpdateCable();
 	UFUNCTION(BlueprintCallable, Category = UmbilicalCable)
 	void SetPointCount(int32 NewPointCount);
 	

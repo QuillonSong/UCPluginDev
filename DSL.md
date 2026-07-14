@@ -101,7 +101,7 @@ UmbilicalCable (Runtime)
 |------|------|------|
 | `SetTargetPoint(Start, End)` | ✅ | 绑定起始和终止 `SceneComponent`。调用后需手动调用 `UpdateCable()` |
 | `SetPointCount(NewPointCount)` | ✅ | 修改采样点数，自动调用 `ResizePoints()` 重建三个点数组 |
-| `UpdateCable()` | ✅ | 触发中心线重算 + Mesh 重建。内部依次调用 `GenerateCenterline()` → `GenerateCable()` |
+| `UpdateCable()` | ✅ | 触发中心线重算 + Mesh 重建。返回 `bool`：`false` 表示 Start/End 组件无效。线缆长度不足时仅输出 Warning 日志，继续以直线绷直生成 |
 
 ### 3.3 私有方法
 
@@ -134,7 +134,7 @@ UmbilicalCable (Runtime)
 | 方法 | 说明 |
 |------|------|
 | `ResizePoints()` | 统一调整 6 个数组（`LinearPoints`/`SagPoints`/`Tangents`/`CableVertices`/`CableNormals`/`CableUVs`）为 `PointCount` 或 `PointCount × RadialSegments` 大小。在 `BeginPlay` 和 `SetPointCount` 中被调用。`BuildCableVertices` 直接下标写入，不再自行分配 |
-| `BuildCableVertices()` | 基于 `SagPoints` + `Tangents` 构建管状网格顶点。逐采样点构造截面圆环（`RadialSegments` 等分），直接下标写入预分配的 `CableVertices`/`CableNormals`/`CableUVs` |
+| `BuildCableVertices()` | 基于 `SagPoints`（世界空间） + `Tangents` 构建管状网格顶点。通过 `GetComponentTransform().Inverse()` 将世界空间中心线转换到组件本地空间，确保 Mesh 跟随 Actor 位置。逐采样点构造截面圆环，直接下标写入预分配数组 |
 | `BuildCableTriangles()` | 构建三角索引。在相邻截面环之间生成四边形（拆为两个三角形），输出 `CableTriangles`。仅在首次 `GenerateCable()` 时调用（拓扑不变） |
 | `GenerateCable()` | Mesh 生成总控。首次调用 `BuildCableVertices` → `BuildCableTriangles` → `CreateMeshSection` + `SetMaterial`；后续仅 `BuildCableVertices` → `UpdateMeshSection` 增量更新顶点 |
 | `DebugDrawCenterline()` | 调试可视化。`DrawDebugLine` 逐段绘制中心线（橙色） + `DrawDebugSphere` 标记起止端点（绿/红），持续 5 秒。仅在 `bIsDrawCenterLine == true` 时调用 |
@@ -423,3 +423,5 @@ BeginPlay → SetTargetPoint(Start, End) → UpdateCable() → [读取 SagPoints
 | 2026-07-14 | 修复（DSL#2）：`SlackLength` 增加 `FMath::Max(0.f, ...)` 负值防御，线缆绷紧时不再反向拱起 |
 | 2026-07-14 | 修复：平滑掩码排除碰撞命中点自身，碰撞点作为固定约束节点不参与平滑，消除碰撞区域衔接折角 |
 | 2026-07-14 | 重构：`GenerateCenterline` 拆分为调度器 + 三个独立 Pass — `DetectCollisions()` / `ApplySmoothing()` / `ComputeTangents()`，每个 Pass 可独立测试和扩展 |
+| 2026-07-14 | 修复：`BuildCableVertices` 增加世界空间→组件本地空间坐标变换（`GetComponentTransform().Inverse()`），修复 BP_Cable 不在场景原点时 Mesh 位置偏移 |
+| 2026-07-14 | 新增：`UpdateCable()` 返回 `bool`，组件无效返回 `false`；线缆长度不足时输出 Warning 日志但继续以直线绷直生成 |
