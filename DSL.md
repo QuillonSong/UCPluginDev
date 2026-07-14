@@ -1,13 +1,13 @@
 # UmbilicalCable 插件设计文档（DSL）
 
-> **版本**：1.1 | **模块类型**：Runtime | **依赖**：Core, CoreUObject, Engine
+> **版本**：1.2 | **模块类型**：Runtime | **依赖**：Core, CoreUObject, Engine
 > 最后更新：2026-07-14
 
 ---
 
 ## 1. 概述
 
-**UmbilicalCable**（脐带缆/垂链线缆）是一个 UE5 Runtime 插件，提供基于悬链线（Catenary）数学模型的三维线缆中心线生成能力。通过指定起止端点和物理参数，自动计算线缆的垂链曲线，并支持可选的环境碰撞检测。
+**UmbilicalCable**（脐带缆/垂链线缆）是一个 UE5 Runtime 插件，提供基于正弦垂链（Sinusoidal Sag）数学模型的三维线缆中心线生成能力。通过指定起止端点和物理参数，自动计算线缆的垂链曲线，并支持可选的环境碰撞检测。
 
 ### 核心用途
 
@@ -141,7 +141,7 @@ UmbilicalCable (Runtime)
 
 ---
 
-## 4. 算法详解：悬链线中心线生成
+## 4. 算法详解：正弦垂链中心线生成
 
 ### 4.1 松弛量计算
 
@@ -167,7 +167,7 @@ SlackLength = max(0, CableLength - |StartPoint - EndPoint|)
 > **公式简化**：`CableLength × (SlackLength / CableLength) × SagFactor` → `SlackLength × SagFactor`，`CableLength` 乘除抵消。
 
 **正弦模型的合理性**：
-- 0~π 的 sin 曲线在两端点为0、中间峰值，准确描述悬链下垂的对称形态
+- 0~π 的 sin 曲线在两端点为0、中间峰值，准确描述垂链下垂的对称形态
 - 相比 `cosh` 避免了双曲函数计算开销
 - `SagFactor` 提供艺术化调整自由度
 
@@ -396,7 +396,7 @@ BeginPlay → SetTargetPoint(Start, End) → UpdateCable() → [读取 SagPoints
 
 | 日期 | 变更 |
 |------|------|
-| 2026-07-13 | 初始实现：`GenerateCenterline` 悬链计算 + 碰撞检测 |
+| 2026-07-13 | 初始实现：`GenerateCenterline` 垂链计算 + 碰撞检测 |
 | 2026-07-13 | 修复：数组预分配 `SetNum` 防越界 |
 | 2026-07-13 | 修复：`LineTraceSingleByChannel` 增加 `FHitResult` 捕获 |
 | 2026-07-13 | 修复：`GetWorld()` 空指针保护 |
@@ -425,3 +425,5 @@ BeginPlay → SetTargetPoint(Start, End) → UpdateCable() → [读取 SagPoints
 | 2026-07-14 | 重构：`GenerateCenterline` 拆分为调度器 + 三个独立 Pass — `DetectCollisions()` / `ApplySmoothing()` / `ComputeTangents()`，每个 Pass 可独立测试和扩展 |
 | 2026-07-14 | 修复：`BuildCableVertices` 增加世界空间→组件本地空间坐标变换（`GetComponentTransform().Inverse()`），修复 BP_Cable 不在场景原点时 Mesh 位置偏移 |
 | 2026-07-14 | 新增：`UpdateCable()` 返回 `bool`，组件无效返回 `false`；线缆长度不足时输出 Warning 日志但继续以直线绷直生成 |
+| 2026-07-14 | 新增：`PointCount` Clamp [4, 512]、`RadialSegments` Clamp [4, 16]，防止编辑器输入极端值导致冻结 |
+| 2026-07-14 | 修正：术语"悬链线/Catenary"→"正弦垂链/Sinusoidal Sag"，准确反映 `sin` 模型本质 |

@@ -10,7 +10,7 @@ BeginPlay → SetTargetPoint(Start, End) → UpdateCable()
 
 ## 核心特性
 
-- **悬链线模型**：正弦近似，`SagFactor` 可调节硬度
+- **正弦垂链模型**：正弦近似，`SagFactor` 可调节硬度
 - **碰撞检测**：`LineTraceSingleByChannel` + 法线偏移，支持斜面/垂直面
 - **局部加权平滑**：碰撞点固定约束，邻域非碰撞点迭代平滑
 - **管状 Mesh**：基于 `UProceduralMeshComponent`，支持增量更新

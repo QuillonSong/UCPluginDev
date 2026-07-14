@@ -26,10 +26,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<USceneComponent> EndComponent;
 	// 中心线采样点数量。决定曲线精度和 Mesh 分段数量
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="4", ClampMax="512"))
 	int32 PointCount = 32;
 	// 线缆截面段数
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="4", ClampMax="16"))
 	int32 RadialSegments = 12;
 	// 脐带缆实际长度，单位cm（UE默认单位）
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
