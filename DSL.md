@@ -100,7 +100,7 @@ UmbilicalCable (Runtime)
 | 方法 | 蓝图 | 说明 |
 |------|------|------|
 | `SetTargetPoint(Start, End)` | ✅ | 绑定起始和终止 `SceneComponent`。调用后需手动调用 `UpdateCable()` |
-| `SetPointCount(NewPointCount)` | ✅ | 修改采样点数，自动调用 `ResizePoints()` 重建三个点数组 |
+| `SetPointCount(NewPointCount)` | ✅ | 修改采样点数，内部 `FMath::Clamp(NewPointCount, 4, 512)` 约束有效范围，自动调用 `ResizePoints()` 重建三个点数组 |
 | `UpdateCable()` | ✅ | 触发中心线重算 + Mesh 重建。返回 `bool`：`false` 表示 Start/End 组件无效。线缆长度不足时仅输出 Warning 日志，继续以直线绷直生成 |
 
 ### 3.3 私有方法
@@ -427,3 +427,4 @@ BeginPlay → SetTargetPoint(Start, End) → UpdateCable() → [读取 SagPoints
 | 2026-07-14 | 新增：`UpdateCable()` 返回 `bool`，组件无效返回 `false`；线缆长度不足时输出 Warning 日志但继续以直线绷直生成 |
 | 2026-07-14 | 新增：`PointCount` Clamp [4, 512]、`RadialSegments` Clamp [4, 16]，防止编辑器输入极端值导致冻结 |
 | 2026-07-14 | 修正：术语"悬链线/Catenary"→"正弦垂链/Sinusoidal Sag"，准确反映 `sin` 模型本质 |
+| 2026-07-14 | 修复：`SetPointCount()` 增加运行时 `FMath::Clamp(NewPointCount, 4, 512)`，同步 UPROPERTY Clamp 约束 |
