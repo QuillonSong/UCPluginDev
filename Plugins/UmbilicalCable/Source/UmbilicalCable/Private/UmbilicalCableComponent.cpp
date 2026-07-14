@@ -41,7 +41,8 @@ bool UUmbilicalCableComponent::UpdateCable()
 
 void UUmbilicalCableComponent::SetPointCount(int32 NewPointCount)
 {
-	PointCount = NewPointCount;
+	// 约束在 [4, 512] 区间内，与 UPROPERTY Clamp 同步，防止运行时传入极端值
+	PointCount = FMath::Clamp(NewPointCount, 4, 512);
 	ResizePoints();
 	// 采样点数量变更后三角拓扑不再匹配，强制下次走全量重建（修复DSL限制#3）
 	bIsMeshCreated = false;
