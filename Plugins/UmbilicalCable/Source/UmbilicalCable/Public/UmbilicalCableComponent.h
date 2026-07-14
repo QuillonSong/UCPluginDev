@@ -1,28 +1,32 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
+// Fill out your copyright notice in the Description page of Project Settings.
 
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ProceduralMeshComponent.h"
 #include "UmbilicalCableComponent.generated.h"
 
-
+/**
+ * 
+ */
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
-class UMBILICALCABLE_API UUmbilicalCableComponent : public UActorComponent
+class UMBILICALCABLE_API UUmbilicalCableComponent : public UProceduralMeshComponent
 {
 	GENERATED_BODY()
 
+protected:
+	// 组件初始化时预分配采样点数组，避免每次 UpdateCable 重复分配
+	virtual void BeginPlay() override;
 	
 public:
-	// Sets default values for this component's properties
-	UUmbilicalCableComponent();
 	// 起点目标组件
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	USceneComponent* StartComponent;
+	TObjectPtr<USceneComponent> StartComponent;
 	// 终点目标组件
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	USceneComponent* EndComponent;
+	TObjectPtr<USceneComponent> EndComponent;
 	// 中心线采样点数量。决定曲线精度和 Mesh 分段数量
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	int32 PointCount = 32;
 	// 线缆截面段数
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
@@ -37,22 +41,24 @@ public:
 	float SagFactor = 0.5f;
 	//线缆材质
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
-	UMaterialInterface* CableMaterial;
+	TObjectPtr<UMaterialInterface> CableMaterial;
 	//启用碰撞
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	bool EnableCollision = true;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	bool bIsDrawCenterLine = true;
 	
 	
 	
-	
-	
-
 	//设置端点
 	UFUNCTION(BlueprintCallable, Category = UmbilicalCable)
 	void SetTargetPoint(USceneComponent* StartPoint, USceneComponent* EndPoint);
 	//更新线缆
 	UFUNCTION(BlueprintCallable, Category = UmbilicalCable)
 	void UpdateCable();
+	UFUNCTION(BlueprintCallable, Category = UmbilicalCable)
+	void SetPointCount(int32 NewPointCount);
+	
 	
 private:
 	//松弛长度
@@ -61,19 +67,35 @@ private:
 	TArray<FVector> LinearPoints;
 	//垂链点位
 	TArray<FVector> SagPoints;
+	//切线方向存储
+	TArray<FVector> Tangents;
+	//已构建线缆模型
+	bool bIsMeshCreated = false;
+	// Mesh顶点缓存
+	TArray<FVector> CableVertices;
+	// Mesh法线缓存
+	TArray<FVector> CableNormals;
+	// Mesh UV缓存
+	TArray<FVector2D> CableUVs;
+	// Mesh三角索引
+	TArray<int32> CableTriangles;
+	// 顶点颜色，不使用时保持为空
+	TArray<FColor> CableColors;
+	// 切线，不使用时保持为空
+	TArray<FProcMeshTangent> CableMeshTangents;
 	
-	
+	//调整Poitns数组尺寸
+	void ResizePoints();
+	//构建中心线
 	void GenerateCenterline();
+	//构建模型顶点
+	void BuildCableVertices();
+	//构建三角索引
+	void BuildCableTriangles();
+	//构建线缆模型
+	void GenerateCable();
+	//[DEBUG]
+	void DebugDrawCenterline();
 	
-		
 	
-protected:
-	// Called when the game starts
-	virtual void BeginPlay() override;
-	
-
-public:
-	// Called every frame
-	virtual void TickComponent(float DeltaTime, ELevelTick TickType,
-	                           FActorComponentTickFunction* ThisTickFunction) override;
 };
