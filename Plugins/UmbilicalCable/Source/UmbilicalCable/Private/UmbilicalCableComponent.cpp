@@ -27,6 +27,8 @@ void UUmbilicalCableComponent::SetPointCount(int32 NewPointCount)
 {
 	PointCount = NewPointCount;
 	ResizePoints();
+	// 采样点数量变更后三角拓扑不再匹配，强制下次走全量重建（修复DSL限制#3）
+	bIsMeshCreated = false;
 }
 
 void UUmbilicalCableComponent::ResizePoints()
@@ -41,6 +43,9 @@ void UUmbilicalCableComponent::ResizePoints()
 	CableUVs.SetNum(VertexCount);
 }
 
+// ============================================================================
+// GenerateCenterline — 中心线生成总调度
+// ============================================================================
 void UUmbilicalCableComponent::GenerateCenterline()
 {
 	if (!IsValid(StartComponent) || !IsValid(EndComponent))
@@ -51,7 +56,8 @@ void UUmbilicalCableComponent::GenerateCenterline()
 	// [INFO]:初始化参数
 	const FVector StartPoint = StartComponent->GetComponentLocation();
 	const FVector EndPoint = EndComponent->GetComponentLocation();
-	SlackLength = CableLength - FVector::Dist(StartPoint, EndPoint);
+	// P1: 防御——线缆绷紧时 SlackLength 可能为负，导致 SagAmount < 0 使曲线向上拱起
+	SlackLength = FMath::Max(0.f, CableLength - FVector::Dist(StartPoint, EndPoint));
 	// CableLength * (SlackLength / CableLength) 数学上等价于 SlackLength
 	const float SagAmount = SlackLength * SagFactor;
 
@@ -65,18 +71,42 @@ void UUmbilicalCableComponent::GenerateCenterline()
 	LinearPoints[LastIdx] = EndPoint;
 	SagPoints[LastIdx] = EndPoint;
 
-	// [INFO]:遍历中间采样点，逐点计算垂链与碰撞
+	// 1. 碰撞检测：垂链曲线生成 + LineTrace 碰撞修正
+	TArray<bool> bCollisionHit;
+	DetectCollisions(StartPoint, EndPoint, SagAmount, World, LastIdx, bCollisionHit);
+
+	// 2. 平滑计算：碰撞区域邻域加权平滑（碰撞点自身固定）
+	ApplySmoothing(bCollisionHit, World, LastIdx);
+
+	// 3. 切线计算：中心差分 + 端点单侧差分
+	ComputeTangents(LastIdx);
+}
+
+// ============================================================================
+// DetectCollisions — 垂链曲线生成 + 碰撞检测
+// ============================================================================
+void UUmbilicalCableComponent::DetectCollisions(
+	const FVector& Start, const FVector& End, float SagAmount,
+	UWorld* World, int32 LastIdx, TArray<bool>& OutCollisionHit)
+{
+	// 惰性分配碰撞标记数组
+	if (EnableCollision && World)
+	{
+		OutCollisionHit.SetNumZeroed(PointCount);
+	}
+
 	for (int32 i = 1; i < LastIdx; ++i)
 	{
 		const float Alpha = static_cast<float>(i) / LastIdx;
-		const FVector LinearPoint = FMath::Lerp(StartPoint, EndPoint, Alpha);
+		const FVector LinearPoint = FMath::Lerp(Start, End, Alpha);
 		LinearPoints[i] = LinearPoint;
 		SagPoints[i] = FVector(
 			LinearPoint.X,
 			LinearPoint.Y,
 			LinearPoint.Z - SagAmount * FMath::Sin(Alpha * UE_PI)
 		);
-		// 碰撞检测：命中时将垂链点修正至碰撞位置，使线缆贴合障碍物表面
+
+		// 碰撞检测：命中时将垂链点修正至障碍物表面
 		if (EnableCollision && World)
 		{
 			FHitResult HitResult;
@@ -87,12 +117,96 @@ void UUmbilicalCableComponent::GenerateCenterline()
 				ECC_Visibility
 			))
 			{
-				// 沿Z轴抬高线缆半径，避免嵌入碰撞体表面
-				SagPoints[i] = FVector(HitResult.Location.X, HitResult.Location.Y, HitResult.Location.Z + CableRadius);
+				// 沿表面法线偏移线缆半径，避免嵌入（修复DSL限制#1）
+				SagPoints[i] = HitResult.Location + HitResult.Normal * CableRadius;
+				OutCollisionHit[i] = true;
 			}
 		}
 	}
-	// [INFO]:计算切线
+}
+
+// ============================================================================
+// ApplySmoothing — 碰撞区域局部加权平滑
+// ============================================================================
+void UUmbilicalCableComponent::ApplySmoothing(
+	const TArray<bool>& bCollisionHit, UWorld* World, int32 LastIdx)
+{
+	if (!EnableCollision || !World || bCollisionHit.Num() == 0)
+	{
+		return;
+	}
+
+	// 检查是否存在碰撞命中
+	bool bAnyCollision = false;
+	for (int32 i = 1; i < LastIdx; ++i)
+	{
+		if (bCollisionHit[i])
+		{
+			bAnyCollision = true;
+			break;
+		}
+	}
+
+	if (!bAnyCollision)
+	{
+		return;
+	}
+
+	// 平滑影响半径：至少3个邻点，与采样密度联动缩放
+	const int32 SmoothRadius = FMath::Max(3, PointCount / 16);
+	constexpr int32 SmoothIterations = 2; // 固定2轮迭代，不依赖 DeltaTime
+
+	// P0: 构建平滑掩码——碰撞命中点 ± SmoothRadius 范围内的非碰撞采样点标记为待平滑
+	// 碰撞命中点自身排除，作为固定约束节点不被平滑移动
+	TArray<bool> bSmoothMask;
+	bSmoothMask.SetNumZeroed(PointCount);
+	for (int32 i = 1; i < LastIdx; ++i)
+	{
+		if (bCollisionHit[i])
+		{
+			const int32 WinStart = FMath::Max(1, i - SmoothRadius);
+			const int32 WinEnd   = FMath::Min(LastIdx - 1, i + SmoothRadius);
+			for (int32 w = WinStart; w <= WinEnd; ++w)
+			{
+				// P0: 碰撞命中点自身不参与平滑，保持障碍物表面约束
+				if (!bCollisionHit[w])
+				{
+					bSmoothMask[w] = true;
+				}
+			}
+		}
+	}
+
+	// 迭代局部加权平滑，核权重 [0.25, 0.5, 0.25]
+	// 工作缓冲避免同迭代内读写污染
+	TArray<FVector> WorkBuffer = SagPoints;
+	for (int32 Iter = 0; Iter < SmoothIterations; ++Iter)
+	{
+		for (int32 i = 1; i < LastIdx; ++i)
+		{
+			if (bSmoothMask[i])
+			{
+				WorkBuffer[i] = SagPoints[i - 1] * 0.25f
+				              + SagPoints[i]     * 0.5f
+				              + SagPoints[i + 1] * 0.25f;
+			}
+		}
+		// 本轮结果写回，供下一轮迭代读取
+		for (int32 i = 1; i < LastIdx; ++i)
+		{
+			if (bSmoothMask[i])
+			{
+				SagPoints[i] = WorkBuffer[i];
+			}
+		}
+	}
+}
+
+// ============================================================================
+// ComputeTangents — 中心差分切线计算
+// ============================================================================
+void UUmbilicalCableComponent::ComputeTangents(int32 LastIdx)
+{
 	for (int32 i = 0; i < PointCount; ++i)
 	{
 		if (i == 0)
@@ -110,7 +224,7 @@ void UUmbilicalCableComponent::GenerateCenterline()
 			Tangents[i] =
 				(SagPoints[i + 1] - SagPoints[i - 1]).GetSafeNormal();
 		}
-	}	
+	}
 }
 
 
@@ -252,7 +366,7 @@ void UUmbilicalCableComponent::GenerateCable()
 {
 	// 根据当前SagPoints和Tangents生成顶点、法线、UV
 	BuildCableVertices();
-	
+
 	if (bIsMeshCreated)
 	{
 		// Mesh拓扑未变化，只更新顶点数据
@@ -355,5 +469,3 @@ void UUmbilicalCableComponent::DebugDrawCenterline()
 		DepthPriority
 	);
 }
-
-

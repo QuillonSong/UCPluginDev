@@ -88,6 +88,13 @@ private:
 	void ResizePoints();
 	//构建中心线
 	void GenerateCenterline();
+	// 碰撞检测：垂链曲线生成 + LineTrace 碰撞修正
+	void DetectCollisions(const FVector& Start, const FVector& End, float SagAmount,
+		UWorld* World, int32 LastIdx, TArray<bool>& OutCollisionHit);
+	// 平滑计算：碰撞区域邻域加权平滑，碰撞点固定
+	void ApplySmoothing(const TArray<bool>& bCollisionHit, UWorld* World, int32 LastIdx);
+	// 切线计算：端点单侧差分 + 中间中央差分
+	void ComputeTangents(int32 LastIdx);
 	//构建模型顶点
 	void BuildCableVertices();
 	//构建三角索引
