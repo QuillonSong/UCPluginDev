@@ -19,33 +19,27 @@ protected:
 	virtual void BeginPlay() override;
 	
 public:
-	// 起点目标组件
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TObjectPtr<USceneComponent> StartComponent;
-	// 终点目标组件
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	TObjectPtr<USceneComponent> EndComponent;
 	// 中心线采样点数量。决定曲线精度和 Mesh 分段数量
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="4", ClampMax="512"))
 	int32 PointCount = 32;
 	// 线缆截面段数
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta=(ClampMin="4", ClampMax="16"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="4", ClampMax="16"))
 	int32 RadialSegments = 12;
 	// 脐带缆实际长度，单位cm（UE默认单位）
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float CableLength = 50000.f;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float CableRadius = 16.f;
 	//松弛度默认0.5；0.3较硬缆线，0.7较软缆线
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	float SagFactor = 0.5f;
 	//线缆材质
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	TObjectPtr<UMaterialInterface> CableMaterial;
 	//启用碰撞
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool EnableCollision = true;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	bool bIsDrawCenterLine = true;
 	
 	
@@ -61,6 +55,8 @@ public:
 	
 	
 private:
+	TObjectPtr<USceneComponent> StartComponent;
+	TObjectPtr<USceneComponent> EndComponent;
 	//松弛长度
 	float SlackLength;
 	//插值点位
