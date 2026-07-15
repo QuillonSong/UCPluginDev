@@ -20,27 +20,27 @@ protected:
 	
 public:
 	// 中心线采样点数量。决定曲线精度和 Mesh 分段数量
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="4", ClampMax="512"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UmbilicalCable, meta=(ClampMin="4", ClampMax="512"))
 	int32 PointCount = 32;
 	// 线缆截面段数
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(ClampMin="4", ClampMax="16"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UmbilicalCable, meta=(ClampMin="4", ClampMax="16"))
 	int32 RadialSegments = 12;
 	// 脐带缆实际长度，单位cm（UE默认单位）
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UmbilicalCable)
 	float CableLength = 50000.f;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UmbilicalCable)
 	float CableRadius = 16.f;
 	//松弛度默认0.5；0.3较硬缆线，0.7较软缆线
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UmbilicalCable)
 	float SagFactor = 0.5f;
 	//线缆材质
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UmbilicalCable)
 	TObjectPtr<UMaterialInterface> CableMaterial;
 	//启用碰撞
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UmbilicalCable)
 	bool EnableCollision = true;
-	UPROPERTY(EditAnywhere, BlueprintReadOnly)
-	bool bIsDrawCenterLine = true;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = UmbilicalCable)
+	bool bIsDrawCenterLine = false;
 	
 	
 	

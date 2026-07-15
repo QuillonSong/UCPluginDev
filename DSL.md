@@ -428,3 +428,4 @@ BeginPlay → SetTargetPoint(Start, End) → UpdateCable() → [读取 SagPoints
 | 2026-07-14 | 新增：`PointCount` Clamp [4, 512]、`RadialSegments` Clamp [4, 16]，防止编辑器输入极端值导致冻结 |
 | 2026-07-14 | 修正：术语"悬链线/Catenary"→"正弦垂链/Sinusoidal Sag"，准确反映 `sin` 模型本质 |
 | 2026-07-14 | 修复：`SetPointCount()` 增加运行时 `FMath::Clamp(NewPointCount, 4, 512)`，同步 UPROPERTY Clamp 约束 |
+| 2026-07-15 | 修复：打包缺少 `Engine/World.h` 和 `DrawDebugHelpers.h` 隐式依赖，编辑器环境传递包含覆盖但独立打包时断裂 |

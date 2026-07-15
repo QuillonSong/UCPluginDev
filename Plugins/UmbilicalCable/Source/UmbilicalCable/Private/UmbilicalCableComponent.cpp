@@ -2,6 +2,8 @@
 
 
 #include "UmbilicalCableComponent.h"
+#include "Engine/World.h"
+#include "DrawDebugHelpers.h"
 
 void UUmbilicalCableComponent::BeginPlay()
 {
